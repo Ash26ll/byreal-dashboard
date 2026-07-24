@@ -53,7 +53,7 @@ tr:hover td { background: #27272a; }
 <body>
 <div class="header">
   <h1>Byreal Predict & Perps</h1>
-  <div class="meta">Updated: 2026-07-24 06:22 UTC<br><span style="color:#f59e0b">Predict data up to: 2026-07-23 | Perps data up to: 2026-07-22</span></div>
+  <div class="meta">Updated: 2026-07-24 06:35 UTC<br><span style="color:#f59e0b">Predict data up to: 2026-07-23 | Perps data up to: 2026-07-22</span></div>
 </div>
 <div class="tabs">
   <div class="tab active" onclick="switchTab('predict')">Predict (Polymarket)</div>
@@ -64,7 +64,7 @@ tr:hover td { background: #27272a; }
 <div class="section active" id="section-predict">
   <div class="filter-bar">
     <label>Period:</label>
-    <button class="filter-btn" onclick="setPredictPeriod('today',this)">Today</button>
+    <button class="filter-btn" onclick="setPredictPeriod('latest',this)" id="p-btn-latest">Latest</button>
     <button class="filter-btn" onclick="setPredictPeriod('7d',this)">7D</button>
     <button class="filter-btn" onclick="setPredictPeriod('30d',this)">30D</button>
     <button class="filter-btn active" onclick="setPredictPeriod('all',this)">All</button>
@@ -91,7 +91,7 @@ tr:hover td { background: #27272a; }
 <div class="section" id="section-perps">
   <div class="filter-bar">
     <label>Period:</label>
-    <button class="filter-btn" onclick="setPerpsPeriod('today',this)">Today</button>
+    <button class="filter-btn" onclick="setPerpsPeriod('latest',this)" id="x-btn-latest">Latest</button>
     <button class="filter-btn" onclick="setPerpsPeriod('7d',this)">7D</button>
     <button class="filter-btn" onclick="setPerpsPeriod('30d',this)">30D</button>
     <button class="filter-btn active" onclick="setPerpsPeriod('all',this)">All</button>
@@ -135,19 +135,31 @@ function switchTab(tab) {
 // Date helpers
 function today() { return new Date().toISOString().slice(0,10); }
 function daysAgo(n) { const d = new Date(); d.setDate(d.getDate()-n); return d.toISOString().slice(0,10); }
-function periodToRange(p) {
-  if (p === 'today') return [today(), today()];
-  if (p === '7d') return [daysAgo(7), today()];
-  if (p === '30d') return [daysAgo(30), today()];
-  return ['', ''];
+
+function latestActiveDate(daily, minVol=100) {
+  for (let i = daily.length - 1; i >= 0; i--) {
+    if (daily[i].vol >= minVol) return daily[i].date;
+  }
+  return daily.length > 0 ? daily[daily.length-1].date : today();
 }
+
 const fmt = (n,d=0) => n.toLocaleString(undefined,{maximumFractionDigits:d});
+
+// Init "Latest" button labels
+const pLatest = latestActiveDate(PREDICT.daily, 100);
+document.getElementById('p-btn-latest').textContent = 'Latest (' + pLatest.slice(5) + ')';
+const xLatest = PERPS ? latestActiveDate(PERPS.daily, 100) : today();
+document.getElementById('x-btn-latest').textContent = 'Latest (' + xLatest.slice(5) + ')';
 
 // ====== PREDICT ======
 function setPredictPeriod(p, btn) {
   document.querySelectorAll('#section-predict .filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  const [from, to] = periodToRange(p);
+  let from, to;
+  if (p === 'latest') { from = pLatest; to = pLatest; }
+  else if (p === '7d') { from = daysAgo(7); to = today(); }
+  else if (p === '30d') { from = daysAgo(30); to = today(); }
+  else { from = ''; to = ''; }
   document.getElementById('p-date-from').value = from;
   document.getElementById('p-date-to').value = to;
   renderPredict(from, to);
@@ -255,7 +267,11 @@ function renderPredict(from, to) {
 function setPerpsPeriod(p, btn) {
   document.querySelectorAll('#section-perps .filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  const [from, to] = periodToRange(p);
+  let from, to;
+  if (p === 'latest') { from = xLatest; to = xLatest; }
+  else if (p === '7d') { from = daysAgo(7); to = today(); }
+  else if (p === '30d') { from = daysAgo(30); to = today(); }
+  else { from = ''; to = ''; }
   document.getElementById('x-date-from').value = from;
   document.getElementById('x-date-to').value = to;
   renderPerps(from, to);
